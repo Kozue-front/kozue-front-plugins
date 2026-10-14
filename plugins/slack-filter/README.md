@@ -64,6 +64,7 @@ claude plugin install slack-filter@kozue-front-plugins
 ## 動作確認した環境
 
 - Claude Code デスクトップアプリ(Windows)+ Slack コネクタ
+- claude.ai:プラグインの画面からのインストールまで確認済み。設定画面と、設定の保存(メモリ・指示欄)は未確認
 
 ## ライセンス
 
