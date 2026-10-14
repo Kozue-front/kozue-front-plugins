@@ -1,0 +1,128 @@
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
+<style>
+.dq{background:#000;color:#fff;border:3px solid #fff;outline:3px solid #000;border-radius:8px;padding:14px 18px;margin:0 0 14px;font-size:14px;line-height:1.7}
+.dq h3{font-family:"DotGothic16",var(--font-mono);color:#fff;font-size:16px;font-weight:400;margin:0 0 2px}
+.help{color:#bbb;font-size:13px;margin:0 0 10px}
+.ck{display:flex;gap:10px;align-items:flex-start;margin:6px 0;cursor:pointer}
+.ck input{accent-color:#ffd84a;width:18px;height:18px;margin-top:3px;flex:none}
+.ck small{display:block;color:#bbb;font-size:12px}
+.dq input[type=text]{background:#000;color:#fff;border:1px solid #fff;border-radius:4px;height:34px;padding:0 10px;font-size:14px;width:100%}
+.person{border:1px dashed #888;border-radius:6px;padding:10px 12px;margin:10px 0}
+.sc{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;align-items:center;margin-top:8px}
+.err{color:#ff8a8a;font-size:13px;min-height:1em;margin-top:4px}
+.sub{border-top:1px dashed #666;margin-top:10px;padding-top:10px}
+</style>
+<h2 class="sr-only">Slackフィルタの設定画面。除外する人、拾う発言と話題、読むチャンネル、結果の形、次に設定画面を開くタイミングを選び、設定を記録するボタンでClaudeに送る。</h2>
+<div style="background:var(--surface-1);border-radius:12px;padding:16px">
+
+<div class="dq"><h3>1. 除外する人を決める</h3>
+<p class="help">名前を入れて「追加」を押してください。ここで除外した人の発言は、2. の話題の候補づくりにも使いません。</p>
+<div style="display:flex;gap:8px"><input type="text" id="nm" placeholder="Slackの表示名"><button data-ui="btn" id="add">追加</button></div>
+<div class="err" id="nmerr"></div>
+<div id="people"></div>
+</div>
+
+<div class="dq"><h3>2. 拾う発言を選ぶ</h3>
+<p class="help">チェックを入れたものを集めます。1つ以上選んでください。</p>
+<label class="ck"><input type="checkbox" id="mention"><span>自分宛てのメンション<small>@自分 が付いた発言</small></span></label>
+<label class="ck"><input type="checkbox" id="thread"><span>自分がいるスレッド<small>自分が書いた、または返信したスレッドの発言</small></span></label>
+<label class="ck"><input type="checkbox" id="topic"><span>自分に関係のある話題<small>下で選んだ話題についての発言</small></span></label>
+<label class="ck"><input type="checkbox" id="bots"><span>ボットや自動通知も拾う<small>チェックしない場合は結果に入れず、最後に件数だけを1行で出します</small></span></label>
+<div class="sub">
+<p class="help">直近1週間の、自分の発言と自分がいるスレッドから、Claude が話題をまとめました。関係あるものを選んでください。（数字は、もとにした発言の件数）</p>
+<div id="chips" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+<p class="help" style="margin:12px 0 6px">足りない話題があれば、書いて「追加」を押してください。</p>
+<div style="display:flex;gap:8px"><input type="text" id="tp" placeholder="来月のセミナー準備"><button data-ui="btn" id="addtp">追加</button></div>
+<div class="err" id="tperr"></div>
+</div>
+</div>
+
+<div class="dq"><h3>3. 読むチャンネルを決める</h3>
+<p class="help">チャンネル名をカンマ区切りで入力します。空欄なら、自分が参加しているチャンネルをすべて読みます。</p>
+<input type="text" id="ch" placeholder="#marketing, #web-renewal">
+</div>
+
+<div class="dq"><h3>4. 結果の形を選ぶ</h3>
+<div id="shape" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+<p class="help" style="margin:8px 0 0" id="shapehelp"></p>
+</div>
+
+<div class="dq"><h3>5. 次にこの画面を開くタイミングを選ぶ</h3>
+<p class="help">選んだタイミングのあと、最初に skill を使ったときに、この画面がもう一度開きます。開いたときは、今回の設定が入った状態から始まり、話題の候補はその時点の直近1週間で作り直します。</p>
+<div id="next" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+<p class="help" style="margin:8px 0 0" id="nexthelp"></p>
+</div>
+
+<div class="dq" style="text-align:center">
+<button id="save" style="display:inline-block;background:#ffd84a;color:#000;border:3px solid #fff;border-radius:6px;padding:10px 28px;font-family:'DotGothic16',monospace;font-size:18px;height:auto;cursor:pointer">▶ 設定を記録する</button>
+<p class="help" style="margin:10px 0 0">この黄色いボタンを押すと、上の内容が Claude に送られて保存されます。</p>
+<div class="err" id="saveerr"></div></div>
+</div>
+<script>
+const INIT=__INITIAL_STATE__;
+const S={shape:INIT.shape||"要約",next:INIT.next||"3日後",people:(INIT.people||[]).map(p=>Object.assign({mode:"ブロック",m:"確認する",t:"消す",o:"消す"},p)),topics:(INIT.topics||[]).map(t=>({n:t.n,c:t.c||0,sel:t.sel!==false,added:false}))};
+const g=id=>document.getElementById(id);
+g("mention").checked=INIT.mention!==false;g("thread").checked=INIT.thread!==false;g("topic").checked=INIT.topic!==false;g("bots").checked=INIT.bots===true;g("ch").value=INIT.channels||"";
+const SH={"要約":"拾った発言を、話題ごとに短くまとめて出します。","発言の一覧":"拾った発言そのものを、日時順に並べて出します。"};
+const fmt=d=>(d.getMonth()+1)+"月"+d.getDate()+"日";
+function nextHelp(v){const d=new Date();
+if(v==="毎回")return "skill を使うたびに、まずこの画面が開きます。調整したいことが多い時期に向いています。";
+if(v==="3日後"){d.setDate(d.getDate()+3);return fmt(d)+" 以降、最初に使うときに開きます。";}
+if(v==="1週間後"){d.setDate(d.getDate()+7);return fmt(d)+" 以降、最初に使うときに開きます。";}
+if(v==="月初"){const n=new Date(d.getFullYear(),d.getMonth()+1,1);return "月が変わったあと、最初に使うときに開きます（次は "+fmt(n)+" 以降）。";}
+return "自動では開きません。「Slackフィルタ設定」と打ったときだけ開きます。";}
+const SC=[["m","① 自分宛て（メンション・DM）"],["t","② 他人宛てだが、自分がいるスレッドの中"],["o","③ 自分と関係のない場所"]];
+const ACT=["消す","確認する","残す"];
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const OPT="display:inline-block;height:auto;cursor:pointer;border-radius:4px;padding:4px 12px;font-size:13px;font-family:inherit;";
+const optStyle=on=>OPT+(on?"background:#ffd84a;color:#000;border:1px solid #ffd84a;":"background:#000;color:#fff;border:1px solid #888;");
+const BTN="display:inline-block;flex:none;height:auto;cursor:pointer;background:#000;color:#fff;border:2px solid #fff;border-radius:4px;padding:5px 14px;font-family:'DotGothic16',monospace;font-size:14px;";
+function opt(label,on,attr,extra){return '<button '+attr+' style="'+optStyle(on)+'">'+(on?"▶ ":"")+label+(extra||"")+'</button>'}
+function seg(vals,cur,attr){return '<div style="display:flex;flex-wrap:wrap;gap:6px">'+vals.map(v=>opt(v,v===cur,attr+' data-v="'+v+'"')).join("")+'</div>'}
+function draw(){
+g("shape").innerHTML=["要約","発言の一覧"].map(v=>opt(v,v===S.shape,'data-v="'+v+'"')).join("");
+g("next").innerHTML=["毎回","3日後","1週間後","月初","自分で言う"].map(v=>opt(v,v===S.next,'data-v="'+v+'"')).join("");
+g("shapehelp").textContent=SH[S.shape];g("nexthelp").textContent=nextHelp(S.next);
+g("chips").innerHTML=S.topics.length?S.topics.map((t,i)=>opt(esc(t.n),t.sel,'data-i="'+i+'"','<span style="font-size:11px;margin-left:4px">'+(t.added?"追加":t.c+"件")+'</span>')).join(""):'<p class="help" style="margin:0">直近1週間の発言から、話題が見つかりませんでした。下の欄から追加してください。</p>';
+const box=g("people");
+box.innerHTML=!S.people.length?'<p class="help" style="margin:10px 0 0">まだ誰も追加していません。</p>':S.people.map((p,i)=>{
+let h='<div class="person"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-size:15px">'+esc(p.name)+'</span><button data-del="'+i+'" style="'+BTN+'font-size:12px;padding:2px 10px">削除</button></div>';
+h+='<div style="color:#bbb;font-size:13px;margin-bottom:4px">除外のしかた</div>'+seg(["ブロック","場面ごとに決める"],p.mode,'data-mode="'+i+'"');
+h+='<p class="help" style="margin:6px 0 0">'+(p.mode==="ブロック"?"この人の発言、この人への返信、この人の発言の引用を、すべてなかったことにします。":"この人の発言を3つの場面に分け、場面ごとに扱いを決めます。「確認する」は本文を出さず、場所と日時のリンクだけを出します。")+'</p>';
+if(p.mode==="場面ごとに決める"){h+='<div class="sc">'+SC.map(([k,l])=>'<span style="font-size:13px">'+l+'</span>'+seg(ACT,p[k],'data-p="'+i+'" data-k="'+k+'"')).join("")+'</div>'}
+return h+'</div>'}).join("");
+}
+document.querySelectorAll('[data-ui="btn"]').forEach(b=>b.setAttribute("style",BTN));
+g("chips").onclick=e=>{const b=e.target.closest("button");if(!b)return;const t=S.topics[+b.dataset.i];t.sel=!t.sel;g("saveerr").textContent="";draw()};
+g("shape").onclick=e=>{const b=e.target.closest("button");if(b){S.shape=b.dataset.v;draw()}};
+g("next").onclick=e=>{const b=e.target.closest("button");if(b){S.next=b.dataset.v;draw()}};
+g("people").onclick=e=>{const b=e.target.closest("button");if(!b)return;
+if(b.dataset.del!==undefined)S.people.splice(+b.dataset.del,1);
+else if(b.dataset.mode!==undefined)S.people[+b.dataset.mode].mode=b.dataset.v;
+else if(b.dataset.p!==undefined)S.people[+b.dataset.p][b.dataset.k]=b.dataset.v;
+draw()};
+g("nm").oninput=()=>g("nmerr").textContent="";
+g("add").onclick=()=>{const v=g("nm").value.trim();if(!v){g("nmerr").textContent="名前を入力してください。";return}
+if(S.people.some(p=>p.name===v)){g("nmerr").textContent="その人はもう追加されています。";return}
+S.people.push({name:v,mode:"ブロック",m:"確認する",t:"消す",o:"消す"});g("nm").value="";draw()};
+g("tp").oninput=()=>g("tperr").textContent="";
+g("addtp").onclick=()=>{const v=g("tp").value.trim();if(!v){g("tperr").textContent="話題を入力してください。";return}
+if(S.topics.some(t=>t.n===v)){g("tperr").textContent="その話題はもうあります。";return}
+if(v.includes("、")){g("tperr").textContent="話題の名前に「、」は使えません。";return}
+S.topics.push({n:v,c:0,sel:true,added:true});g("tp").value="";draw()};
+["mention","thread","topic"].forEach(id=>g(id).addEventListener("input",()=>g("saveerr").textContent=""));
+g("save").onclick=()=>{
+const E=g("saveerr"),sel=S.topics.filter(t=>t.sel).map(t=>t.n);
+if(!g("mention").checked&&!g("thread").checked&&!g("topic").checked){E.textContent="2. で、拾う発言を1つ以上選んでください。";return}
+if(g("topic").checked&&!sel.length){E.textContent="2. で、話題を1つ以上選ぶか、追加してください。";return}
+let t="【Slackフィルタ設定】\n除外する人："+(S.people.length?"":"なし");
+S.people.forEach(p=>{t+="\n- "+p.name+"："+(p.mode==="ブロック"?"ブロック":"場面ごと（①メンション="+p.m+" ②自分のスレッド="+p.t+" ③関係ない場所="+p.o+"）")});
+t+="\n拾うもの："+[g("mention").checked&&"自分宛てのメンション",g("thread").checked&&"自分がいるスレッド",g("topic").checked&&"話題（"+sel.join("、")+"）"].filter(Boolean).join("、");
+t+="\nボットや自動通知："+(g("bots").checked?"拾う":"拾わない（件数だけ出す）");
+t+="\n読むチャンネル："+(g("ch").value.trim()||"参加しているチャンネルすべて");
+t+="\n結果の形："+S.shape;
+t+="\n次に設定画面を開く："+S.next;
+if(typeof sendPrompt!=="function"){E.textContent="この画面からは送れない環境です。Claude に「設定を質問形式で聞いて」と頼んでください。";return}
+sendPrompt(t)};
+draw();
+</script>

@@ -1,0 +1,10 @@
+{
+  "name": "slack-filter",
+  "version": "0.2.0",
+  "description": "Slack から自分に関係のある発言だけを拾ってまとめる。結果から外したアカウントの発言は、返信や引用も含めて結果に出さない。",
+  "author": { "name": "Kozue-front" },
+  "repository": "https://github.com/Kozue-front/kozue-front-plugins",
+  "homepage": "https://github.com/Kozue-front/kozue-front-plugins/tree/main/plugins/slack-filter",
+  "license": "MIT",
+  "keywords": ["slack", "filter", "summary", "japanese"]
+}

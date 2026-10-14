@@ -1,0 +1,20 @@
+{
+  "name": "kozue-front-plugins",
+  "description": "Kozue-front が公開している Claude 用の skill・プラグイン",
+  "owner": {
+    "name": "Kozue-front",
+    "url": "https://github.com/Kozue-front"
+  },
+  "plugins": [
+    {
+      "name": "slack-filter",
+      "source": "./plugins/slack-filter",
+      "description": "Slack から自分に関係のある発言だけを拾ってまとめる(「Slackフィルタ」)。結果から外したアカウントの発言は、返信や引用も含めて結果に出さない。"
+    },
+    {
+      "name": "ai-updates-digest",
+      "source": { "source": "github", "repo": "Kozue-front/ai-updates-digest" },
+      "description": "Claude のアップデートを集めて裏を取る(「Claudeアプデ」)。今の設定を公式のベストプラクティスで診断する(「Claude診断」)。"
+    }
+  ]
+}
